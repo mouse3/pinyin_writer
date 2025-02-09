@@ -1,12 +1,15 @@
 from keyboard import is_pressed, press, release, write
 from time import sleep
-#Creado por 2b2 :3
-####################################
-tecla_activacion = "ctrl"
-segunda_tecla_activacion = "'"
 
-# Mapeo de caracteres a reemplazar
-replacement_map = {
+
+###############################
+# Teclas de activación
+tecla_activacion = "ctrl"
+segunda_tecla_activacion_caron = "`"
+segunda_tecla_activacion_macron = "´"
+
+# Mapeo de caracteres para caron (ˇ)
+replacement_map_caron = {
     "a": "ǎ",
     "o": "ǒ",
     "e": "ě",
@@ -15,65 +18,60 @@ replacement_map = {
     "ü": "ǚ"
 }
 
+# Mapeo de caracteres para macron (¯)
+replacement_map_macron = {
+    "a": "ā",
+    "o": "ō",
+    "e": "ē",
+    "i": "ī",
+    "u": "ū",
+    "ü": "ǖ"
+}
+
 ctrl_held = False
 awaiting_letter = False
-is_comma_pressed = False
-####################################
+accent_type = None  # 'caron' o 'macron'
+###############################
 
-def detect_ctrl_and_comma():
-    global ctrl_held, awaiting_letter, is_comma_pressed
+
+def detect_ctrl_and_accent():
+    global ctrl_held, awaiting_letter, accent_type
 
     # Detecta si Ctrl está presionado
     if is_pressed(tecla_activacion):
-        if not ctrl_held:
-            ctrl_held = True
-            #print("[DEBUG] Ctrl presionado")
+        ctrl_held = True
 
-    # Detecta si se presiona la comilla simple después de Ctrl
-    if is_pressed(segunda_tecla_activacion) and ctrl_held and not is_comma_pressed:
-        is_comma_pressed = True
-        #print("[DEBUG] Comilla simple detectada después de Ctrl")
-    
-    # Si ambas teclas están presionadas al mismo tiempo
-    if is_pressed(tecla_activacion) and is_pressed(segunda_tecla_activacion):
-        awaiting_letter = True
-        #print("[DEBUG] Ambas teclas presionadas simultáneamente")
+    # Detecta si se presionó el acento y asigna el tipo correcto
+    if ctrl_held:
+        if is_pressed(segunda_tecla_activacion_caron) and accent_type is None:
+            accent_type = "caron"
+            awaiting_letter = True
 
-    # Si estamos esperando una letra después de Ctrl + '
+        if is_pressed(segunda_tecla_activacion_macron) and accent_type is None:
+            accent_type = "macron"
+            awaiting_letter = True
+
+    # Si estamos esperando una letra después de Ctrl + acento
     if awaiting_letter:
-        # Detectar la tecla presionada
         for char in "abcdefghijklmnopqrstuvwxyz":
             if is_pressed(char):
-                #print(f"[DEBUG] Tecla presionada después de Ctrl + ': {char}")
-
-                if char in replacement_map:
-                    #print(f"[DEBUG] Reemplazando {char} con {replacement_map[char]}")
-                    
-                    # Borrar los dos últimos caracteres antes de escribir la nueva letra
-                    for _ in range(1):
-                        press('backspace')
-                        release('backspace')
-                    
-                    # Escribir la letra con el diacrítico
-                    write(replacement_map[char])
-                else:
-                    #print("[DEBUG] Tecla no está en el mapeo, no se reemplaza nada")
-                    pass
+                replacement_map = replacement_map_caron if accent_type == "caron" else replacement_map_macron
                 
-                awaiting_letter = False  # Reiniciar estado
-                ctrl_held = False  # Liberar Ctrl
+                if char in replacement_map:
+                    press('backspace')
+                    release('backspace')
+                    write(replacement_map[char])
+
+                # Reiniciar estados después de escribir la letra
+                awaiting_letter = False
+                ctrl_held = False
+                accent_type = None
                 break
 
-    # Detecta cuando se libera la comilla simple para poder usarla nuevamente
-    if not is_pressed("'") and is_comma_pressed:
-        is_comma_pressed = False  # Resetear flag cuando la comilla se ha soltado
-
 def main():
-    #print("[DEBUG] Escuchando teclado...")
-
     while True:
-        detect_ctrl_and_comma()
-        sleep(0.01)  # Pausar ligeramente para reducir uso de CPU
+        detect_ctrl_and_accent()
+        sleep(0.01)  # Pequeña pausa para reducir uso de CPU
 
 if __name__ == "__main__":
     main()
