@@ -1,5 +1,5 @@
 from keyboard import is_pressed, press, release, write
-from time import sleep, time
+from time import sleep
 
 ###############################
 # Teclas de activación
@@ -13,8 +13,7 @@ replacement_map_caron = {
     "o": "ǒ",
     "e": "ě",
     "i": "ǐ",
-    "u": "ǔ",
-    "ü": "ǚ"
+    "u": "ǔ"
 }
 
 # Mapeo de caracteres para macron (¯)
@@ -23,50 +22,40 @@ replacement_map_macron = {
     "o": "ō",
     "e": "ē",
     "i": "ī",
-    "u": "ū",
-    "ü": "ǖ"
+    "u": "ū"
 }
 
 ctrl_held = False
 awaiting_letter = False
-accent_type = None
-time_of_first_key = 0  # Para calcular el tiempo entre teclas
+accent_type = None  # 'caron' o 'macron'
 ###############################
 
 
 def detect_ctrl_and_accent():
-    global ctrl_held, awaiting_letter, accent_type, time_of_first_key
+    global ctrl_held, awaiting_letter, accent_type
 
     # Detecta si Ctrl está presionado
     if is_pressed(tecla_activacion):
-        if not ctrl_held:
-            ctrl_held = True
-            time_of_first_key = time()  # Guardar el tiempo de activación
+        ctrl_held = True
 
-    # Detecta si la segunda tecla fue presionada dentro del intervalo permitido
-    if ctrl_held and not awaiting_letter:
-        if is_pressed(segunda_tecla_activacion_caron):
-            if time() - time_of_first_key <= 2:
-                accent_type = "caron"
-                awaiting_letter = True
+    # Detecta si se presionó el acento y asigna el tipo correcto
+    if ctrl_held:
+        if is_pressed(segunda_tecla_activacion_caron) and accent_type is None:
+            accent_type = "caron"
+            awaiting_letter = True
+            sleep(0.1)  # Evita detectar múltiples pulsaciones seguidas
 
-        elif is_pressed(segunda_tecla_activacion_macron):
-            if time() - time_of_first_key <= 2:
-                accent_type = "macron"
-                awaiting_letter = True
-
-    # Si pasaron más de 2 segundos, cancelar la espera
-    if awaiting_letter and (time() - time_of_first_key > 2):
-        awaiting_letter = False
-        ctrl_held = False
-        accent_type = None
+        if is_pressed(segunda_tecla_activacion_macron) and accent_type is None:
+            accent_type = "macron"
+            awaiting_letter = True
+            sleep(0.1)
 
     # Si estamos esperando una letra después de Ctrl + acento
     if awaiting_letter:
         for char in "abcdefghijklmnopqrstuvwxyz":
             if is_pressed(char):
                 replacement_map = replacement_map_caron if accent_type == "caron" else replacement_map_macron
-
+                
                 if char in replacement_map:
                     press('backspace')
                     release('backspace')
@@ -76,14 +65,19 @@ def detect_ctrl_and_accent():
                 awaiting_letter = False
                 ctrl_held = False
                 accent_type = None
-                break
+                return
+        
+        # Si se presiona una tecla que no es una vocal válida, cancelar el estado de espera
+        if any(is_pressed(key) for key in "1234567890-=[];',./\\"):
+            awaiting_letter = False
+            ctrl_held = False
+            accent_type = None
 
 
 def main():
     while True:
         detect_ctrl_and_accent()
         sleep(0.01)  # Pequeña pausa para reducir uso de CPU
-
 
 if __name__ == "__main__":
     main()
